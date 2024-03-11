@@ -1,42 +1,67 @@
+import random
+import numpy as np
+from torchinfo import summary
+import pandas as pd
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 import torch
 from torch import nn
-
-
-from utils import MSE
-from data_process import get_data
-from dataset import data_set
+from torch.nn import LSTM, GRU, LSTMCell
+# 定义优化器和损失函数
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch import optim
+from tqdm import tqdm
+from torch.utils.data import DataLoader
+from torch.utils.data import TensorDataset
+import os
+from dataset import load_data, creat_dataset, train_test_split
+from utils import fit
 from model import LstmModel
+import warnings
+warnings.filterwarnings('ignore')
+from sklearn.preprocessing import MinMaxScaler
+def train_main(df, model, seq_len=96, label='出力(MW)', batch_size=8, epochs=20, learning_rate=0.01, weight_decay=1e-3):
+    torch.manual_seed(1412)
+    train_tensor, label_tensor = creat_dataset(df, seq_len, label=label)
 
-from config import *
-
-def train_main():
-    df = get_data()
-    ratio = 0.67
-    train, test, train_tensor, test_tensor = data_set(df,ratio)
-    # 实例化模型
-    model = LstmModel(input_size, hidden_size, num_layers, output_size)
-    # 定义损失函数与优化算法
+    x_train, y_train, x_test, y_test = train_test_split(train_tensor, label_tensor)
+    # 批次处理
+    train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True, drop_last=False,
+                              num_workers=4, pin_memory=True)
+    test_tensor = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=False, drop_last=False,
+                             num_workers=4, pin_memory=True)
+    # 优化器、损失函数、学习率
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     criterion = nn.MSELoss(reduction='mean')
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model.train()
-    # 开始进行训练
-    for epoch in range(num_epochs):
-        outputs = model(train_tensor)
-        optimizer.zero_grad()
-        loss = criterion(outputs, train_tensor[:, :, :])
-        loss.backward()
-        optimizer.step()
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+    # 训练
+    fit(model, train_loader, test_tensor, criterion, optimizer, scheduler, epochs)
 
-        if (epoch + 1) % 50 == 0:
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
-    print("训练完成")
+if __name__ == "__main__":
+    # 设置全局的随机种子
+    torch.backends.cudnn.deterministic = True  # 将cudnn框架中的随机数生成器设为确定性模式
+    torch.backends.cudnn.benchmark = False  # 关闭CuDNN框架的自动寻找最优卷积算法的功能，以避免不同的算法对结果产生影响
+    torch.manual_seed(1412)
+    random.seed(1412)
+    np.random.seed(1412)
+    # 设置设备
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # 超参数设置
+    input_size = 12
+    hidden_size = 256
+    num_layers = 10
+    output_size = 1
+    learning_rate = 0.1
+    weight_decay = 1e-4
+    num_epochs = 30
+    batch_size= 30
 
-    model.eval()
-    test_outputs = model(test_tensor).detach().numpy()
-    test_outputs = list(test_outputs[0, :, 0])
-    # print("平均：",MSE(train,train.mean()),MSE(test,test.mean()))
-    MSE(test, test_outputs)
-
-if __name__ == '__main__':
+    label = '出力(MW)'
+    seq_len = 12
 
 
+    df = load_data()
+    input_size = len(df.columns) - 1
+    model = LstmModel(input_size, hidden_size, num_layers,output_size)
+    train_main(df, model, seq_len=96, label='出力(MW)', batch_size=batch_size,epochs=num_epochs, learning_rate=learning_rate, weight_decay=weight_decay)

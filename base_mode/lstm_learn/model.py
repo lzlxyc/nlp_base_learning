@@ -2,16 +2,16 @@ import torch
 from torch import nn
 from torch.nn import LSTM, GRU, LSTMCell
 
-
 # 定义网路架构LSTM
 # input_size   hidden_size  num_layers out_size
 class LstmModel(nn.Module):
-    def __init__(self,input_size=1, hidden_size=50, num_layers=1, out_size=1, bidirectional=False, batch_first=True):
+    def __init__(self,input_size=12, hidden_size=50, num_layers=1, out_size=1, bidirectional=False, batch_first=True):
         super().__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.bidirectional = 2 if bidirectional else 1
-        self.lstm = LSTM(input_size,hidden_size,num_layers,batch_first=batch_first, bidirectional=bidirectional)
+        self.lstm = LSTM(input_size,hidden_size,num_layers,dropout=0.2, batch_first=batch_first, bidirectional=bidirectional)
+        self.dropout = nn.Dropout(0.3)
         self.fc = nn.Linear(self.bidirectional*hidden_size, out_size)
 
     def forward(self,x):
@@ -21,7 +21,8 @@ class LstmModel(nn.Module):
         # output = output.contiguous().view(x.size(0), x.size(1), 2, self.hidden_size)
         # output = torch.mean(output,dim=2)
         # print(output.size())
-        return self.fc(output[:, :, :])
+        output = self.dropout(output)
+        return self.fc(output[:,-1,:])
 
 
 
