@@ -20,7 +20,7 @@ from sklearn.preprocessing import MinMaxScaler
 # 数据处理
 def load_data(topn=None):
     # 创建包含数据的字典
-    path = 'F:/learning/nlp_base_learning/data/A榜-训练集_海上风电预测_气象变量及实际功率数据.csv'
+    path = './data/A榜-训练集_海上风电预测_气象变量及实际功率数据.csv'
     #path = 'F:/learning/power_prediction/ans/test_0.047370373032452714.csv'
 
     df = pd.read_csv(path,encoding='gbk',nrows=topn)

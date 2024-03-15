@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import LSTM, GRU, LSTMCell
-
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 # 定义网路架构LSTM
 # input_size   hidden_size  num_layers out_size
 class LstmModel(nn.Module):
@@ -11,12 +11,12 @@ class LstmModel(nn.Module):
         self.hidden_size = hidden_size
         self.bidirectional = 2 if bidirectional else 1
         self.lstm = LSTM(input_size,hidden_size,num_layers,dropout=0.2, batch_first=batch_first, bidirectional=bidirectional)
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(0.2)
         self.fc = nn.Linear(self.bidirectional*hidden_size, out_size)
 
     def forward(self,x):
-        h0 = torch.randn(self.bidirectional*self.num_layers, x.size(0), self.hidden_size).requires_grad_()
-        c0 = torch.randn(self.bidirectional*self.num_layers, x.size(0), self.hidden_size).requires_grad_()
+        h0 = torch.randn(self.bidirectional*self.num_layers, x.size(0), self.hidden_size).to(device)
+        c0 = torch.randn(self.bidirectional*self.num_layers, x.size(0), self.hidden_size).to(device)
         output, (_, _) = self.lstm(x, (h0.detach(), c0.detach()))
         # output = output.contiguous().view(x.size(0), x.size(1), 2, self.hidden_size)
         # output = torch.mean(output,dim=2)
@@ -57,7 +57,4 @@ class LstmCellModel(nn.Module):
             outputs.append(h_11)
 
         return self.fc(outputs[-1])
-
-
-
 

@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch.nn import LSTM, GRU, LSTMCell
 import os
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 # 一次完整的迭代
 def train_once(model, criterion, opt, x, y_true):
@@ -48,7 +49,8 @@ def plotloss(train_loss_list, test_loss_list, is_loss=True):
     plt.show()
     if not os.path.exists('./pic'):
         os.mkdir('./pic')
-    plt.savefig('./pic/loss.png' if is_loss else './picpred_true.png', dpi=400)
+    path = './pic/loss.png' if is_loss else './pic/pred_true.png'
+    plt.savefig(path)
 
 
 
@@ -120,7 +122,7 @@ def fit(model, batch_train, batch_test, criterion, optimizer, scheduler, epochs,
         train_num = 0
         loss_train = 0
         for idx, (x, y) in enumerate(batch_train, 1):
-            _, loss = train_once(model, criterion, optimizer, x, y)
+            _, loss = train_once(model, criterion, optimizer, x.to(device), y.to(device))
             loss_train += loss * x.size(0)
             train_num += x.shape[0]
             # # 监控训练过程
@@ -136,7 +138,7 @@ def fit(model, batch_train, batch_test, criterion, optimizer, scheduler, epochs,
 
         loss_test = 0
         for x, y in batch_test:
-            y_pred, loss = test_once(model, criterion, x, y)
+            y_pred, loss = test_once(model, criterion, x.to(device), y.to(device))
             loss_test += loss * x.size(0)
             epoch_predictions.append(y_pred)
             epoch_true_values.append(y.numpy())
@@ -168,7 +170,7 @@ def fit(model, batch_train, batch_test, criterion, optimizer, scheduler, epochs,
     print("\tBest_epoch", best_epoch, "\tBest_loss:", best_score)
     print("Done")
 
-    print("bset_epoch_predictions:", bset_epoch_predictions, "\nbset_epoch_true_values:",bset_epoch_true_values)
+    # print("bset_epoch_predictions:", bset_epoch_predictions, "\nbset_epoch_true_values:",bset_epoch_true_values)
     plotloss(bset_epoch_predictions, bset_epoch_true_values, is_loss=False)
     plotloss(train_loss_list, test_loss_list)
 

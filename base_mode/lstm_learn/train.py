@@ -21,7 +21,7 @@ from model import LstmModel
 import warnings
 warnings.filterwarnings('ignore')
 from sklearn.preprocessing import MinMaxScaler
-def train_main(df, model, seq_len=96, label='出力(MW)', batch_size=8, epochs=20, learning_rate=0.01, weight_decay=1e-3):
+def train_main(df, model, seq_len=96, label='出力(MW)', batch_size=8, epochs=20, learning_rate=0.01, weight_decay=1e-3, device='cpu'):
     torch.manual_seed(1412)
     train_tensor, label_tensor = creat_dataset(df, seq_len, label=label)
 
@@ -33,10 +33,12 @@ def train_main(df, model, seq_len=96, label='出力(MW)', batch_size=8, epochs=2
                              num_workers=4, pin_memory=True)
     # 优化器、损失函数、学习率
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    criterion = nn.MSELoss(reduction='mean')
+    criterion = nn.MSELoss(reduction='mean').to(device)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
     # 训练
     fit(model, train_loader, test_tensor, criterion, optimizer, scheduler, epochs)
+    torch.cuda.empty_cache()
+
 
 if __name__ == "__main__":
     # 设置全局的随机种子
@@ -46,11 +48,12 @@ if __name__ == "__main__":
     random.seed(1412)
     np.random.seed(1412)
     # 设置设备
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+    print("device:",device)
     # 超参数设置
     input_size = 12
-    hidden_size = 256
-    num_layers = 10
+    hidden_size = 128
+    num_layers = 5
     output_size = 1
     learning_rate = 0.1
     weight_decay = 1e-4
@@ -58,10 +61,10 @@ if __name__ == "__main__":
     batch_size= 30
 
     label = '出力(MW)'
-    seq_len = 12
-
-
+    seq_len = 48
     df = load_data()
     input_size = len(df.columns) - 1
     model = LstmModel(input_size, hidden_size, num_layers,output_size)
-    train_main(df, model, seq_len=96, label='出力(MW)', batch_size=batch_size,epochs=num_epochs, learning_rate=learning_rate, weight_decay=weight_decay)
+    model = model.to(device)
+
+    train_main(df, model, seq_len=seq_len, label='出力(MW)', batch_size=batch_size,epochs=num_epochs, learning_rate=learning_rate, weight_decay=weight_decay, device=device)
